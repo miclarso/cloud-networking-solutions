@@ -156,12 +156,17 @@ variable "mcp_internal_dns_zone" {
     name   = optional(string, "mcp-server-internal")
     domain = string
   })
-  # No default — the operator must explicitly choose the DNS suffix because the
-  # right value depends on dns_zone_domain (and on whether Agent Gateway is in
-  # use). See the description above.
+  # null on the simple path (`enable_cloud_run_private_networking = false`); the
+  # cross-variable validation below promotes it to required when the master flag
+  # flips on. Every consumer in main.tf/outputs.tf already guards for null.
+  default = null
   validation {
-    condition     = endswith(var.mcp_internal_dns_zone.domain, ".")
+    condition     = var.mcp_internal_dns_zone == null || endswith(var.mcp_internal_dns_zone.domain, ".")
     error_message = "mcp_internal_dns_zone.domain must end with a trailing dot (e.g. \"mcp.example.com.\")."
+  }
+  validation {
+    condition     = !var.enable_cloud_run_private_networking || var.mcp_internal_dns_zone != null
+    error_message = "mcp_internal_dns_zone is required when enable_cloud_run_private_networking = true (it supplies the per-service domain fronting the MCP internal Application LB). Set it in your tfvars (typically mcp_internal_dns_zone = { domain = \"mcp.<dns_zone_domain>\" }), or leave enable_cloud_run_private_networking = false to use the *.run.app simple path."
   }
 }
 
