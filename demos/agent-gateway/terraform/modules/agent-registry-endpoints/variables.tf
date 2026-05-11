@@ -37,6 +37,7 @@ variable "google_apis" {
     trace                  = "Trace"
     agentregistry          = "Agent Registry"
     iap                    = "Identity-Aware Proxy"
+    iamcredentials         = "IAM Credentials"
   }
 }
 

@@ -18,3 +18,8 @@ output "agent_identity_principal" {
   description = "The Agent Identity principalSet for all Agent Engine agents in this project"
   value       = "principalSet://agents.global.org-${var.organization_id}.system.id.goog/attribute.platformContainer/aiplatform/projects/${var.project_number}"
 }
+
+output "agent_mcp_invoker_email" {
+  description = "Email of the SA agents impersonate when invoking MCP Cloud Run services. Pass this to the mcp-cloud-run module's invoker_sa_email and to the agent runtime as MCP_INVOKER_SA_EMAIL."
+  value       = google_service_account.agent_mcp_invoker.email
+}

@@ -88,6 +88,11 @@ output "mcp_service_account_emails" {
   value       = module.mcp_services.service_account_emails
 }
 
+output "agent_mcp_invoker_email" {
+  description = "Email of the SA agents impersonate when invoking MCP Cloud Run services. Pass to deploy_agent.py via --mcp-invoker-sa or $MCP_INVOKER_SA_EMAIL. Null when enable_agent_engine is false."
+  value       = var.enable_agent_engine ? module.agent_engine[0].agent_mcp_invoker_email : null
+}
+
 output "mcp_internal_dns_names" {
   description = "Map of MCP service key to its private DNS name (<service>.<domain>). Null when enable_cloud_run_private_networking = false (no MCP private zone is provisioned)."
   value = (

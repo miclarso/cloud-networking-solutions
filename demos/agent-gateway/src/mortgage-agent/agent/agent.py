@@ -17,6 +17,7 @@
 import logging
 import os
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 from google.adk.agents.llm_agent import Agent
@@ -26,6 +27,109 @@ from google.adk.tools.tool_context import ToolContext
 from . import tools
 
 logger = logging.getLogger(__name__)
+
+
+def _build_impersonation_factory(target_url: str, target_sa_email: str):
+    """Return an httpx_client_factory that signs requests as `target_sa_email`.
+
+    Direct Agent Identity → Cloud Run authentication is not supported (as of
+    2026-05). The supported pattern: agent uses its identity to impersonate a
+    standard IAM SA, then mints an OIDC ID token for that SA and presents it
+    in the Authorization header. Cloud Run validates the token and sees the
+    impersonated SA as the caller. The agent identity must hold
+    roles/iam.serviceAccountTokenCreator on `target_sa_email`, and that SA
+    must hold roles/run.invoker on the Cloud Run service.
+
+    The returned factory matches MCP's McpHttpClientFactory protocol:
+    create_mcp_http_client(headers, timeout, auth) -> httpx.AsyncClient.
+    """
+    # Imported lazily so importing this module never fails when google-auth
+    # isn't installed (e.g. during static analysis or tests that mock out
+    # the registry path).
+    import google.auth
+    import google.auth.transport.requests as gar
+    from google.auth import impersonated_credentials
+
+    # Audience is the origin of the Cloud Run URL (no path/query). Must match
+    # the URL Cloud Run sees in the request.
+    parsed = urlparse(target_url)
+    audience = f"{parsed.scheme}://{parsed.netloc}"
+
+    try:
+        source_creds, source_project = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        logger.info(
+            "Impersonation factory ready: target_sa=%s audience=%s source_creds=%s source_project=%s",
+            target_sa_email,
+            audience,
+            type(source_creds).__name__,
+            source_project,
+        )
+        impersonated = impersonated_credentials.Credentials(
+            source_credentials=source_creds,
+            target_principal=target_sa_email,
+            target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        id_token_creds = impersonated_credentials.IDTokenCredentials(
+            target_credentials=impersonated,
+            target_audience=audience,
+            include_email=True,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to build impersonated credentials for target_sa=%s audience=%s — "
+            "MCP calls to %s will fail. Common causes: agent identity missing "
+            "roles/iam.serviceAccountTokenCreator, iamcredentials.googleapis.com disabled, "
+            "or wrong source credentials.",
+            target_sa_email,
+            audience,
+            target_url,
+        )
+        raise
+
+    class _ImpersonatedIDTokenAuth(httpx.Auth):
+        """Per-request httpx auth that refreshes the OIDC token on demand."""
+
+        requires_request_body = False
+
+        def __init__(self, creds, target_url: str):
+            self._creds = creds
+            self._req = gar.Request()
+            self._target_url = target_url
+
+        def auth_flow(self, request):
+            try:
+                if not self._creds.valid:
+                    self._creds.refresh(self._req)
+            except Exception:
+                # ADK wraps this in a TaskGroup and prints only the wrapper's
+                # str(); log the real exception here so it survives.
+                logger.exception(
+                    "OIDC token refresh failed for target_url=%s (impersonation chain "
+                    "agent-identity → %s). Subsequent MCP request will be unauthenticated.",
+                    self._target_url,
+                    target_sa_email,
+                )
+                raise
+            request.headers["Authorization"] = f"Bearer {self._creds.token}"
+            yield request
+
+    auth_handler = _ImpersonatedIDTokenAuth(id_token_creds, target_url)
+
+    def factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+    ) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            follow_redirects=True,
+            headers=headers,
+            timeout=timeout if timeout is not None else httpx.Timeout(30.0, read=300.0),
+            # Honor an explicit auth from the caller (rare); otherwise inject ours.
+            auth=auth if auth is not None else auth_handler,
+        )
+
+    return factory
+
 
 # Populated by _discover_mcp_toolsets at agent build time. Each entry mirrors
 # what the registry returned plus the resolved tool_name_prefix, so the
@@ -177,6 +281,13 @@ def _discover_mcp_toolsets() -> list:
 
     filter_str = os.environ.get("MCP_REGISTRY_FILTER")
     endpoint = os.environ.get("MCP_REGISTRY_ENDPOINT")
+    invoker_sa_email = os.environ.get("MCP_INVOKER_SA_EMAIL")
+    if not invoker_sa_email:
+        logger.warning(
+            "MCP_INVOKER_SA_EMAIL is not set. MCP calls will use the agent's default "
+            "credentials, which Cloud Run does not accept for IAM-protected services. "
+            "Set MCP_INVOKER_SA_EMAIL to the SA the agent should impersonate."
+        )
 
     try:
         # Imported lazily so the agent module loads even when ADK's optional
@@ -248,6 +359,20 @@ def _discover_mcp_toolsets() -> list:
         if conn_params is not None and hasattr(conn_params, "timeout"):
             conn_params.timeout = 30.0
         resolved_url = getattr(conn_params, "url", None)
+        # Inject SA-impersonation auth so each MCP HTTP call carries an OIDC
+        # ID token for the invoker SA. Cloud Run validates the token and sees
+        # the invoker SA as the caller (the agent identity is not propagated
+        # to Cloud Run; principalSet members are not accepted as run.invoker).
+        if (
+            invoker_sa_email
+            and conn_params is not None
+            and resolved_url
+            and hasattr(conn_params, "httpx_client_factory")
+        ):
+            conn_params.httpx_client_factory = _build_impersonation_factory(
+                target_url=resolved_url,
+                target_sa_email=invoker_sa_email,
+            )
         logger.info(
             "  built toolset: server=%s displayName=%r prefix=%s resolved_url=%s",
             name,
