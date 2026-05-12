@@ -53,3 +53,9 @@ variable "private_networking" {
   type        = bool
   default     = true
 }
+
+variable "invoker_sa_email" {
+  description = "Email of the service account granted `roles/run.invoker` on every MCP Cloud Run service. Agents impersonate this SA (using `roles/iam.serviceAccountTokenCreator` granted on the agent identity in the agent-engine module) and present its OIDC ID token in the Authorization header. When null, no invoker binding is created and the services are unreachable until invoker is granted manually — this is the intended behavior when the agent-gateway demo is disabled."
+  type        = string
+  default     = null
+}

@@ -351,6 +351,10 @@ module "mcp_services" {
   region             = var.region
   services           = var.mcp_services
   private_networking = var.enable_cloud_run_private_networking
+  # Restricts roles/run.invoker to the agent-mcp-invoker SA. Null when
+  # agent_engine is disabled, in which case mcp-cloud-run skips the binding
+  # and Cloud Run is unreachable until invoker is granted out-of-band.
+  invoker_sa_email = var.enable_agent_engine ? module.agent_engine[0].agent_mcp_invoker_email : null
 
   depends_on = [module.foundation, google_artifact_registry_repository.registry]
 }

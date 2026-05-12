@@ -340,6 +340,17 @@ def main() -> None:
         default="mortgage-agent",
         help="Discovery Engine authorization/agent name (default: mortgage-agent)",
     )
+    parser.add_argument(
+        "--mcp-invoker-sa",
+        default=os.environ.get("MCP_INVOKER_SA_EMAIL"),
+        help=(
+            "Email of the service account the deployed agent impersonates to mint "
+            "OIDC ID tokens for MCP Cloud Run calls. The agent's identity must hold "
+            "roles/iam.serviceAccountTokenCreator on this SA, and this SA must hold "
+            "roles/run.invoker on each MCP Cloud Run service. Sourced from terraform "
+            "output `agent_mcp_invoker_email`. Default: $MCP_INVOKER_SA_EMAIL."
+        ),
+    )
     args = parser.parse_args()
 
     if not args.project:
@@ -414,14 +425,22 @@ def main() -> None:
         print(f"  Network attachment: {args.network_attachment}")
     if args.enable_agent_identity:
         print("  Agent identity:     enabled")
+    if args.mcp_invoker_sa:
+        print(f"  MCP invoker SA:     {args.mcp_invoker_sa}")
     print()
 
-    # Configure the agent module's runtime environment.
+    # Configure the agent module's runtime environment. These are read at
+    # `from agent.agent import root_agent` time below, so they must be set
+    # before the import — not just in the deployed agent's env_vars.
     os.environ["MODEL_NAME"] = args.model
     os.environ["MCP_REGISTRY_PROJECT"] = args.project
     os.environ["MCP_REGISTRY_LOCATION"] = args.region
     if args.registry_filter:
         os.environ["MCP_REGISTRY_FILTER"] = args.registry_filter
+    if args.registry_endpoint:
+        os.environ["MCP_REGISTRY_ENDPOINT"] = args.registry_endpoint
+    if args.mcp_invoker_sa:
+        os.environ["MCP_INVOKER_SA_EMAIL"] = args.mcp_invoker_sa
 
     import vertexai
 
@@ -458,9 +477,7 @@ def main() -> None:
     if args.enable_agent_identity:
         config["identity_type"] = "AGENT_IDENTITY"
     if args.agent_gateway:
-        config["agent_gateway_config"] = {
-            "agent_to_anywhere_config": {"agent_gateway": args.agent_gateway}
-        }
+        config["agent_gateway_config"] = {"agent_to_anywhere_config": {"agent_gateway": args.agent_gateway}}
 
     agent_src = os.path.join(agent_dir, "agent")
     staging_dir = tempfile.mkdtemp(prefix="agent_deploy_")
@@ -550,6 +567,7 @@ def main() -> None:
                 "MCP_REGISTRY_LOCATION": args.region,
                 **({"MCP_REGISTRY_FILTER": args.registry_filter} if args.registry_filter else {}),
                 **({"MCP_REGISTRY_ENDPOINT": args.registry_endpoint} if args.registry_endpoint else {}),
+                **({"MCP_INVOKER_SA_EMAIL": args.mcp_invoker_sa} if args.mcp_invoker_sa else {}),
             },
             display_name=args.display_name,
             description=description,

@@ -127,18 +127,28 @@ resource "google_cloud_run_v2_service" "mcp" {
   }
 }
 
-# Allow invocation from anywhere ingress lets through. With
-# `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` that's the LB only ("allUsers" means
-# "any caller the LB lets in"). With `INGRESS_TRAFFIC_ALL` it means the public
-# internet, which is the intended demo path when private_networking = false.
-# Without this binding the serverless NEG (or any direct client) sends requests
-# with no Authorization header and Cloud Run rejects with 403.
-resource "google_cloud_run_v2_service_iam_member" "internal_lb_invoker" {
-  for_each = var.services
+# Grant `roles/run.invoker` only to the agent invoker SA (created in the
+# agent-engine module). Agents impersonate this SA at runtime and present its
+# OIDC ID token to Cloud Run, so Cloud Run sees the impersonated SA as the
+# caller. `allUsers` is intentionally not granted: MCP services are unreachable
+# except by holders of an OIDC token for the invoker SA, regardless of
+# `private_networking`. Per-agent authorization is still enforced upstream at
+# the Agent Gateway via `roles/iap.egressor` (see scripts/grant_agent_mcp_egress.sh).
+#
+# When `invoker_sa_email` is null (e.g. the agent-engine module is disabled),
+# no binding is created and Cloud Run is unreachable until invoker is granted
+# out-of-band. There is no `allUsers` fallback by design.
+moved {
+  from = google_cloud_run_v2_service_iam_member.internal_lb_invoker
+  to   = google_cloud_run_v2_service_iam_member.agent_invoker
+}
+
+resource "google_cloud_run_v2_service_iam_member" "agent_invoker" {
+  for_each = var.invoker_sa_email != null ? var.services : {}
 
   project  = var.project_id
   location = var.region
   name     = google_cloud_run_v2_service.mcp[each.key].name
   role     = "roles/run.invoker"
-  member   = "allUsers"
+  member   = "serviceAccount:${var.invoker_sa_email}"
 }

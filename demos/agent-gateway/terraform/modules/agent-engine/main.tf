@@ -87,6 +87,39 @@ resource "google_project_iam_member" "agent_identity_telemetry_writer" {
 }
 
 # =============================================================================
+# Agent MCP invoker service account
+# Agents impersonate this SA at runtime to mint OIDC ID tokens for invoking
+# MCP Cloud Run services. The agent identity holds `roles/iam.serviceAccountTokenCreator`
+# (granted at the project level below). The SA itself is granted
+# `roles/run.invoker` on each MCP service in modules/mcp-cloud-run, so Cloud
+# Run sees the impersonated SA as the caller (the agent identity is not
+# propagated; Cloud Run does not accept agents.global principalSet members
+# directly today, May 2026).
+# =============================================================================
+
+resource "google_service_account" "agent_mcp_invoker" {
+  project      = var.project_id
+  account_id   = "agent-mcp-invoker"
+  display_name = "Agent MCP invoker SA"
+  description  = "OIDC token target for agents calling MCP Cloud Run services. Agent identity has project-level Token Creator allowing impersonation of this and other project SAs."
+}
+
+# Project-level Token Creator binding. We use project-level (not per-SA) so
+# this can be applied with `roles/resourcemanager.projectIamAdmin` alone — no
+# `iam.serviceAccounts.setIamPolicy` required on the terraform principal,
+# which keeps the demo bootstrap minimal. Trade-off: the agent identity can
+# impersonate any SA in the project, not just `agent-mcp-invoker`. This is
+# acceptable for the demo project (which only contains demo SAs); for
+# production, scope this to the specific SA via
+# `google_service_account_iam_member` (requires `roles/iam.serviceAccountIamAdmin`
+# on the apply principal) or with an IAM condition on `resource.name`.
+resource "google_project_iam_member" "agent_identity_token_creator" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountTokenCreator"
+  member  = local.agent_identity_principal
+}
+
+# =============================================================================
 # Demo user IAM bindings
 # Grants roles/aiplatform.user to demo users.
 # =============================================================================
