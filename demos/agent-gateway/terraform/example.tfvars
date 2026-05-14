@@ -253,6 +253,7 @@ agent_registry_google_apis = {
   agentregistry        = "Agent Registry"
   iap                  = "Identity-Aware Proxy"
   modelarmor           = "Model Armor"
+  iamcredentials       = "IAM Credentials"
 }
 
 # Optional: Override or add custom (non-Google) services to register
