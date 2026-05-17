@@ -265,7 +265,7 @@ variable "model_armor_sdp_enforcement" {
 }
 
 variable "model_armor_pii_types" {
-  description = "List of PII info types to detect and block"
+  description = "Info types whose findings the response Model Armor template's deidentify transformation replaces with the type-name placeholder. Model Armor's SDP filter still runs Google's built-in detectors (including PERSON_NAME) regardless of this list, but only findings whose info type appears here are transformed — anything else is passed through to the agent unchanged. Keep identity fields the agent needs for downstream reasoning (e.g. PERSON_NAME) OUT of this list."
   type        = list(string)
   default = [
     "US_SOCIAL_SECURITY_NUMBER",
@@ -277,7 +277,6 @@ variable "model_armor_pii_types" {
     "MEDICAL_RECORD_NUMBER",
     "IP_ADDRESS",
     "STREET_ADDRESS",
-    "PERSON_NAME"
   ]
 }
 
