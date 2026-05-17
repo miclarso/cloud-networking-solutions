@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from fastmcp import FastMCP
+from fastmcp.tools.base import ToolResult
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
@@ -174,7 +175,7 @@ def _get_document(document_id: str) -> dict:
 
 
 @mcp.tool()
-def search_documents(applicant_last_name: str, document_type: str, years: int = 2) -> dict:
+def search_documents(applicant_last_name: str, document_type: str, years: int = 2) -> ToolResult:
     """Search the document management system for applicant documents.
 
     Args:
@@ -183,24 +184,27 @@ def search_documents(applicant_last_name: str, document_type: str, years: int = 
         years: Number of years of documents to retrieve (default 2).
 
     Returns:
-        Dictionary with matching document metadata.
+        ToolResult with matching document metadata in structured_content.
     """
+    # content=[] suppresses the duplicate raw-text representation; Model Armor's
+    # CONTENT_AUTHZ only redacts structuredContent, so leaving content[] populated
+    # leaks SSNs around the redactor.
     with trace_tool(tracer, "search_documents"):
-        return _search_documents(applicant_last_name, document_type, years)
+        return ToolResult(content=[], structured_content=_search_documents(applicant_last_name, document_type, years))
 
 
 @mcp.tool()
-def get_document(document_id: str) -> dict:
+def get_document(document_id: str) -> ToolResult:
     """Retrieve a full document from the document management system by ID.
 
     Args:
         document_id: The unique document identifier (e.g. 'DOC-2024-SM-1040').
 
     Returns:
-        Dictionary with the full document content.
+        ToolResult with the full document content in structured_content.
     """
     with trace_tool(tracer, "get_document"):
-        return _get_document(document_id)
+        return ToolResult(content=[], structured_content=_get_document(document_id))
 
 
 # ---------------------------------------------------------------------------

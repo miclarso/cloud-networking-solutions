@@ -65,6 +65,19 @@ resource "google_data_loss_prevention_deidentify_template" "ssn" {
   deidentify_config {
     info_type_transformations {
       transformations {
+        # Scope the replace transformation to ONLY the info types the operator
+        # asked for in var.pii_types. Without this filter, the transformation
+        # applies to every finding — and Model Armor's SDP filter detects
+        # PERSON_NAME on its own (alongside the custom inspect template),
+        # which then gets replaced with [PERSON_NAME] even though PERSON_NAME
+        # is not in var.pii_types. Listing the info types here makes findings
+        # of any other type pass through untransformed.
+        dynamic "info_types" {
+          for_each = var.pii_types
+          content {
+            name = info_types.value
+          }
+        }
         primitive_transformation {
           replace_with_info_type_config = true
         }

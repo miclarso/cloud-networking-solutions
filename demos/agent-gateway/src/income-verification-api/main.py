@@ -15,6 +15,7 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastmcp import FastMCP
+from fastmcp.tools.base import ToolResult
 from pydantic import BaseModel
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse as StarletteJSONResponse
@@ -83,7 +84,7 @@ mcp = FastMCP(name="income-verification")
 
 
 @mcp.tool()
-def verify_applicant(first_name: str, last_name: str) -> dict:
+def verify_applicant(first_name: str, last_name: str) -> ToolResult:
     """Verify applicant income through third-party income verification service.
 
     Args:
@@ -91,16 +92,17 @@ def verify_applicant(first_name: str, last_name: str) -> dict:
         last_name: Applicant's last name.
 
     Returns:
-        Dictionary with verified income data from employer records.
+        ToolResult with verified income data in structured_content.
     """
+    # content=[] suppresses the duplicate raw-text representation; Model Armor's
+    # CONTENT_AUTHZ only redacts structuredContent, so leaving content[] populated
+    # leaks SSNs around the redactor.
     with trace_tool(tracer, "verify_applicant"):
-        result = _verify(first_name, last_name)
-        if result:
-            return result
-        return {
+        result = _verify(first_name, last_name) or {
             "status": "error",
             "error": f"No verification records found for {first_name} {last_name}.",
         }
+        return ToolResult(content=[], structured_content=result)
 
 
 # ---------------------------------------------------------------------------

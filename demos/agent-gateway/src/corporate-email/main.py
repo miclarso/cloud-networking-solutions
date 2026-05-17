@@ -16,6 +16,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastmcp import FastMCP
+from fastmcp.tools.base import ToolResult
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
@@ -99,7 +100,7 @@ mcp = FastMCP(name="corporate-email")
 
 
 @mcp.tool()
-def send_email(to: str, subject: str, body: str) -> dict:
+def send_email(to: str, subject: str, body: str) -> ToolResult:
     """Send an email through the corporate email system.
 
     Args:
@@ -108,14 +109,17 @@ def send_email(to: str, subject: str, body: str) -> dict:
         body: Email body content.
 
     Returns:
-        Dictionary with send status, message ID, and timestamp.
+        ToolResult with send status, message ID, and timestamp in structured_content.
     """
+    # content=[] suppresses the duplicate raw-text representation; Model Armor's
+    # CONTENT_AUTHZ only redacts structuredContent, so leaving content[] populated
+    # leaks sensitive fields around the redactor.
     with trace_tool(tracer, "send_email"):
-        return _send(to, subject, body)
+        return ToolResult(content=[], structured_content=_send(to, subject, body))
 
 
 @mcp.tool()
-def read_email(email_id: str | None = None) -> dict:
+def read_email(email_id: str | None = None) -> ToolResult:
     """Read emails from the corporate inbox. This is a read-only operation.
 
     Args:
@@ -123,10 +127,10 @@ def read_email(email_id: str | None = None) -> dict:
                   returns all emails in the inbox.
 
     Returns:
-        Dictionary with a list of email messages.
+        ToolResult with a list of email messages in structured_content.
     """
     with trace_tool(tracer, "read_email"):
-        return _read(email_id)
+        return ToolResult(content=[], structured_content=_read(email_id))
 
 
 # ---------------------------------------------------------------------------
