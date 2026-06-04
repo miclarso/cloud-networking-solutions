@@ -35,15 +35,15 @@ resource "google_logging_project_bucket_config" "default_analytics" {
   enable_analytics = true
 }
 
-# The dashboard JSON ships with `duncanjames-agw-tf` hardcoded in BigQuery-
+# The dashboard JSON ships with the `PROJECT_ID` placeholder in BigQuery-
 # style table refs (`<project>.global._Default._AllLogs`); rewrite it to the
-# caller's project. The on-disk file stays valid JSON so it remains usable
-# for manual import via the GCP console.
+# caller's project. For a manual import via the GCP console, substitute
+# `PROJECT_ID` with a real project ID first.
 resource "google_monitoring_dashboard" "authorization_debugging" {
   project = var.project_id
   dashboard_json = replace(
     file("${path.module}/authorization-debugging.json"),
-    "duncanjames-agw-tf",
+    "PROJECT_ID",
     var.project_id,
   )
 
