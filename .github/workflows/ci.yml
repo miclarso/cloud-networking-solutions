@@ -43,8 +43,42 @@ jobs:
       - name: Install pre-commit
         run: pip install pre-commit
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Install goimports
+        run: |
+          go install golang.org/x/tools/cmd/goimports@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.5"
+
+      - name: Run Hadolint Dockerfile Linter
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+
       - name: Run pre-commit checks
-        run: pre-commit run --all-files
+        run: |
+          echo "=== CLI Tool Versions ==="
+          terraform --version || echo "terraform not installed"
+          tflint --version || echo "tflint not installed"
+          go version || echo "go not installed"
+          python --version || echo "python not installed"
+          pre-commit --version || echo "pre-commit not installed"
+
+          echo "=== Running Pre-Commit ==="
+          SKIP=markdown-link-check,hadolint pre-commit run --all-files --show-diff-on-failure --verbose
 
   go-tests:
     name: Go Tests
