@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 if os.environ.get("DISABLE_SSL_VERIFICATION") == "true":
     import ssl
+
     ssl._create_default_https_context = ssl._create_unverified_context
     logger.warning("SSL certificate verification has been disabled via environment variable.")
 

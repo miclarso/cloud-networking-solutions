@@ -24,6 +24,7 @@ dependencies = [
     "opentelemetry-instrumentation-grpc",
     "opentelemetry-instrumentation-fastapi",
     "a2a-sdk",
+    "mcp",
 ]
 
 [project.optional-dependencies]

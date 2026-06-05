@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import os
 from unittest import mock
 
 from agent.tools import get_current_time, list_mcp_connections
@@ -43,26 +42,54 @@ class TestGetCurrentTime:
 
 
 class TestListMcpConnections:
-    def test_default_urls(self):
-        result = list_mcp_connections()
-        assert result["count"] == 3
-        connections = result["connections"]
-        assert connections[0]["tool_name_prefix"] == "dms_"
-        assert connections[1]["tool_name_prefix"] == "income_"
-        assert connections[2]["tool_name_prefix"] == "email_"
-        assert all(c["status"] == "configured" for c in connections)
+    _MOCK_DISCOVERED = [
+        {
+            "name": "legacy-dms",
+            "tool_name_prefix": "dms_",
+            "resolved_url": "https://dms.internal/mcp",
+            "tools": ["search_documents", "get_document"],
+        },
+        {
+            "name": "income-verification",
+            "tool_name_prefix": "income_",
+            "resolved_url": "https://income.internal/mcp",
+            "tools": ["verify_income"],
+        },
+        {
+            "name": "corporate-email",
+            "tool_name_prefix": "email_",
+            "resolved_url": "https://email.internal/mcp",
+            "tools": ["list_messages", "get_message"],
+        },
+    ]
 
-    def test_custom_urls_from_env(self):
-        with mock.patch.dict(
-            os.environ,
-            {
-                "DMS_MCP_URL": "https://custom-dms/mcp",
-                "INCOME_VERIFICATION_URL": "https://custom-income/mcp",
-                "EMAIL_MCP_URL": "https://custom-email/mcp",
-            },
-        ):
+    def test_default_urls(self):
+        from agent import agent as agent_module
+
+        with mock.patch.object(agent_module, "DISCOVERED_MCP_SERVERS", self._MOCK_DISCOVERED):
             result = list_mcp_connections()
+            assert result["count"] == 3
             connections = result["connections"]
-            assert connections[0]["url"] == "https://custom-dms/mcp"
-            assert connections[1]["url"] == "https://custom-income/mcp"
-            assert connections[2]["url"] == "https://custom-email/mcp"
+            assert connections[0]["tool_name_prefix"] == "dms_"
+            assert connections[1]["tool_name_prefix"] == "income_"
+            assert connections[2]["tool_name_prefix"] == "email_"
+            assert connections[0]["resolved_url"] == "https://dms.internal/mcp"
+
+    def test_custom_discovered_servers(self):
+        from agent import agent as agent_module
+
+        custom_servers = [
+            {
+                "name": "custom-dms",
+                "tool_name_prefix": "custom_dms_",
+                "resolved_url": "https://custom-dms/mcp",
+                "tools": ["get_custom"],
+            }
+        ]
+        with mock.patch.object(agent_module, "DISCOVERED_MCP_SERVERS", custom_servers):
+            result = list_mcp_connections()
+            assert result["count"] == 1
+            connections = result["connections"]
+            assert connections[0]["name"] == "custom-dms"
+            assert connections[0]["tool_name_prefix"] == "custom_dms_"
+            assert connections[0]["resolved_url"] == "https://custom-dms/mcp"

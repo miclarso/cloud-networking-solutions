@@ -465,9 +465,7 @@ def main() -> None:
     if args.enable_agent_identity:
         config["identity_type"] = "AGENT_IDENTITY"
     if args.agent_gateway:
-        config["agent_gateway_config"] = {
-            "agent_to_anywhere_config": {"agent_gateway": args.agent_gateway}
-        }
+        config["agent_gateway_config"] = {"agent_to_anywhere_config": {"agent_gateway": args.agent_gateway}}
 
     agent_src = os.path.join(agent_dir, "agent")
     staging_dir = tempfile.mkdtemp(prefix="agent_deploy_")
