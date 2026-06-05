@@ -1,0 +1,125 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  lint-and-precommit:
+    name: Lint & Pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up pre-commit Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit checks
+        run: pre-commit run --all-files
+
+  go-tests:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - "reference-architectures/networking-for-ai-inference/src/bbr-ext-proc-go"
+          - "demos/service-extensions-gke-gateway/src/dlp-ext-proc"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+          cache-dependency-path: '${{ matrix.dir }}/go.sum'
+
+      - name: Module Synchronization
+        run: |
+          cd ${{ matrix.dir }}
+          go mod tidy
+
+      - name: Run Go tests
+        run: |
+          cd ${{ matrix.dir }}
+          go test -v ./...
+
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - "demos/agent-gateway/src/income-verification-api"
+          - "demos/agent-gateway/src/legacy-dms"
+          - "demos/agent-gateway/src/corporate-email"
+          - "demos/agent-gateway/src/mortgage-agent"
+          - "demos/service-extensions-gke-gateway/src/income-verification-api"
+          - "demos/service-extensions-gke-gateway/src/legacy-dms"
+          - "demos/service-extensions-gke-gateway/src/corporate-email"
+          - "demos/service-extensions-gke-gateway/src/mortgage-agent"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "${{ matrix.dir }}/pyproject.toml"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync Dependencies
+        run: |
+          cd ${{ matrix.dir }}
+          uv sync --all-extras --dev
+
+      - name: Run Ruff Lint
+        run: |
+          cd ${{ matrix.dir }}
+          uv run ruff check
+
+      - name: Run Ruff Format Check
+        run: |
+          cd ${{ matrix.dir }}
+          uv run ruff format --check
+
+      - name: Run Pytest
+        run: |
+          cd ${{ matrix.dir }}
+          uv run pytest
