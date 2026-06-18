@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Deploy an ADK agent to Vertex AI Reasoning Engine.
 
 Version 10: Renames egress gateway flag to --agent-gateway-egress and adds --agent-gateway-ingress for Client-to-Agent Ingress support.
@@ -57,7 +71,7 @@ def register_to_ge(
     auth_id = f"{agent_name}_{int(time.time() * 1000)}"
     auth_resource_name = f"projects/{project}/locations/global/authorizations/{auth_id}"
     auth_url = f"{base_url}/authorizations?authorizationId={auth_id}"
-    
+
     authorization_uri = (
         "https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={oauth_client_id}"
@@ -68,7 +82,7 @@ def register_to_ge(
         "&access_type=offline"
         "&prompt=consent"
     )
-    
+
     auth_body = {
         "displayName": auth_id,
         "serverSideOauth2": {
@@ -150,13 +164,13 @@ def main():
     parser.add_argument("--re-custom-sa", help="Custom service account for Reasoning Engine")
     parser.add_argument("--enable-telemetry", action="store_true", help="Enable native Reasoning Engine telemetry")
     parser.add_argument("--allow-token-sharing", action="store_true", help="Allow agent identity token sharing for GCP services (disables bound token sharing)")
-    
+
     # Gemini Enterprise
     parser.add_argument("--ge-deploy", action="store_true", help="Register with Gemini Enterprise after deploy")
     parser.add_argument("--app-id", help="Gemini Enterprise App ID")
     parser.add_argument("--oauth-client-id", help="OAuth2 client ID")
     parser.add_argument("--oauth-client-secret", help="OAuth2 client secret")
-    
+
     args = parser.parse_args()
 
     if args.ge_deploy:
@@ -189,11 +203,11 @@ def main():
     # Staging Trick: Copy source to a temp directory named 'agent'
     staging_dir = tempfile.mkdtemp(prefix="agent_deploy_")
     original_cwd = os.getcwd()
-    
+
     try:
         src_abs_path = os.path.abspath(args.src_dir)
         agent_dest = os.path.join(staging_dir, "agent")
-        
+
         print(f"Staging agent code from {src_abs_path} to {agent_dest}...")
         shutil.copytree(
             src_abs_path,
@@ -318,10 +332,10 @@ def main():
             tn_value = args.target_network
             if not tn_value.startswith("projects/"):
                 tn_value = f"projects/{network_project}/global/networks/{tn_value}"
-                
+
             if "psc_interface_config" not in deploy_config:
                 deploy_config["psc_interface_config"] = {}
-                
+
             deploy_config["psc_interface_config"]["dns_peering_configs"] = [
                 {
                     "domain": domain,
