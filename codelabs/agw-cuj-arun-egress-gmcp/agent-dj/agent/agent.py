@@ -13,10 +13,7 @@
 # limitations under the License.
 
 # Version History:
-# v1.0.3: Update LLM agent instructions to use flexible/wildcard case-insensitive matching to handle "DJ " prefixes seamlessly.
-# v1.0.2: Add case-insensitive name matching guidelines to LLM agent instructions to prevent BigQuery case-sensitive mismatches.
-# v1.0.1: Workaround for PyOpenSSL conflict with urllib3 and OpenTelemetry in reasoning engine runtimes
-# v1.0.0: Original baseline implementation.
+# v1.0.3
 
 import sys
 import os

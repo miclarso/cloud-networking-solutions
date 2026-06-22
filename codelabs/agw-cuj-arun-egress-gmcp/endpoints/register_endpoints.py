@@ -13,15 +13,6 @@
 # limitations under the License.
 
 # Version: 12
-# Added command line flags to selectively filter or generate endpoints:
-# - --region: Regional location (e.g. us-central1). Default: us-central1 (or fallbacks).
-# - --multi-region: Multi-region location to include (e.g. us, eu, or none). Default: none.
-#   Note: Multi-region endpoints (e.g. us-*) are registered in the "global" registry location
-#   because the Agent Registry API does not support multi-region codes in --location.
-# - --mtls-endpoints: choices=["include", "exclude"], default="exclude".
-# - --clear-all: Bulk deregister all currently registered services.
-# - --dry-run: Run without invoking actual gcloud registry changes.
-# - --project: Target GCP Project.
 #
 # Path Resolution:
 # - Dynamically resolves the path of "googleapis.txt" relative to the script's directory

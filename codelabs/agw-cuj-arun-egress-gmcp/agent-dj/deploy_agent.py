@@ -15,13 +15,7 @@
 
 """Deploy an ADK agent to Vertex AI Reasoning Engine.
 
-Version 10: Renames egress gateway flag to --agent-gateway-egress and adds --agent-gateway-ingress for Client-to-Agent Ingress support.
-Version 09: Corrects target_network and dns-domains to map inside psc_interface_config.dns_peering_configs array per GenAI SDK PscInterfaceConfig validation schema.
-Version 08: Resolves pyproject.toml relative to script path (__file__), allowing execution from parent folders.
-Version 07: Adds --allow-token-sharing flag to set GOOGLE_API_PREVENT_AGENT_TOKEN_SHARING_FOR_GCP_SERVICES to false.
-Version 06: Adds --network-project flag and removes update support.
-Version 05: Adds --data-bucket flag to pass bucket name to remote environment.
-Version 04: Reads requirements from pyproject.toml for portability.
+Version 10
 """
 
 import argparse
