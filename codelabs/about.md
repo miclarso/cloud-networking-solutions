@@ -23,3 +23,9 @@ The code within the subdirectories is intended to be checked out or downloaded a
 *   **Directory:** [`agw-cuj-arun-egress-vpc/`](agw-cuj-arun-egress-vpc/)
 *   **Description:** Implement agent governance with Agent Gateway deployed in agent-to-anywhere (egress) mode to authorize and secure outbound traffic from an agent hosted on Agent Runtime to a VPC network with Private Service Connect (PSC) endpoint accessing an MCP server hosted on Cloud Run.
 *   **Published Codelab Link:** [https://codelabs.developers.google.com/agw-cuj-arun-egress-vpc](https://codelabs.developers.google.com/agw-cuj-arun-egress-vpc)
+
+### Agent Gateway ingress to Agent Runtime with Model Armor
+
+*   **Directory:** [`agw-cuj-arun-ingress-modar/`](agw-cuj-arun-ingress-modar/)
+*   **Description:** Implement agent governance with Agent Gateway deployed in client-to-agent (ingress) mode to screen inbound traffic to an agent hosted on Agent Runtime.
+*   **Published Codelab Link:** [https://codelabs.developers.google.com/agw-cuj-arun-ingress-modar](https://codelabs.developers.google.com/agw-cuj-arun-ingress-modar)
